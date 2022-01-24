@@ -57,6 +57,12 @@ protected:
         return false;
     }
     
+    /**Check if square is magic one. Needs to be overrided*/
+    virtual bool get_magic_number()
+    {
+        return false;
+    }
+    
 private:
     /**Send class to output stream*/
     friend std::ostream& operator<<(std::ostream& out, const MagicSquareTemplate& ms)
@@ -245,14 +251,79 @@ public:
     {
         rezero_taken();
         
-        for (int i = 0; i < N; i++)
+        for (uint16_t i = 0; i < N; i++)
         {
-            for (int j = 0; j < N; j++)
+            for (uint16_t j = 0; j < N; j++)
             {
                 square[i][j] = array[i][j];
             }
         }
         
         mark_taken();
+    }
+    
+    /**Check if sum of row or column elements equals required*/
+    bool check(T sum, int k, bool check_row = true)
+    {
+        if (check_row)
+        {
+            for (uint16_t j = 0; j < N; j++)
+            {
+                sum -= square[k][j];
+            }
+        }
+        else
+        {
+            for (uint16_t i = 0; i < N; i++)
+            {
+                sum -= square[i][k];
+            }
+        }
+        
+        return sum == 0;
+    }
+    
+    /**Check if sum of main (d == True) or side (d == False) diagonal elements equals required*/
+    bool check(T sum, bool main_d)
+    {
+        if (main_d)
+        {
+            for (uint16_t k = 0; k < N; k++)
+            {
+                sum -= square[k][k];
+            }
+        }
+        else
+        {
+            for (uint16_t k = 0; k < N; k++)
+            {
+                sum -= square[k][N - k - 1];
+            }
+        }
+        
+        return sum == 0;
+    }
+    
+    /**Check if square is magic regarding the supposed magic number*/
+    bool check(T sum)
+    {
+        bool flag = true;
+        
+        for (uint16_t k = 0; k < N; k++)
+        {
+            flag &= check(sum, k) & check(sum, k, false);
+        }
+        
+        flag &= check(sum, true) & check(sum, false);
+        
+        return flag;
+    }
+    
+    /**Check if square magic or not*/
+    bool is_magic()
+    {
+        T sum = get_magic_number();
+        
+        return check(sum);
     }
 };
