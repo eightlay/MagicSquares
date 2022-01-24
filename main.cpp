@@ -12,9 +12,10 @@ using namespace std;
 
 int main(int argc, const char * argv[]) {
     
-    auto ms = MagicSquareTemplate<int, 3, 1, 9, 1>();
+    int array[3][3] = {{2, 7, 6}, {9, 5, 1}, {4, 3, 8}};
+    auto ms = MagicSquareTemplate<int, 3, 1, 9, 1>(array);
     
-    cout << ms;
+    cout << ms << ms.is_magic() << endl;
     
     return 0;
 }

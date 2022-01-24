@@ -19,6 +19,10 @@ class MagicSquareTemplate
 protected:
     /**Square itself*/
     T square[N][N];
+    /**Values range*/
+    uint16_t domain_size = max_value - min_value + 1;
+    /**Container to track if specific value from domain can be placed in square*/
+    uint32_t taken[max_value - min_value + 1];
     /**Domain of the square*/
     T domain[max_value - min_value + 1];
     /**Placeholder for square*/
@@ -29,16 +33,8 @@ protected:
     const uint16_t ultimate = N - 1;
     /**Depth of the squre: number of elements to fill square*/
     const uint32_t depth = N * N;
-    /**Container to track if specific value from domain can be placed in square*/
-    uint32_t taken[max_value - min_value + 1];
     
 protected:
-    /**Fill taken. Needs to be overrided*/
-    virtual void rezero_taken()
-    {
-        
-    }
-    
     /**Take one place from domain's value limit. Needs to be overrided*/
     virtual void take(uint16_t i, uint16_t j)
     {
@@ -190,24 +186,14 @@ private:
         }
     }
     
-    /**Mark currently taken numbers. Needs to be overrided*/
-    void mark_taken()
-    {
-        for (uint16_t i = 0; i < N; i++)
-        {
-            for (uint16_t j = 0; j < N; j++)
-            {
-                if (square[i][j] != placeholder)
-                {
-                    take(i, j);
-                }
-            }
-        }
-    }
-    
     /**Set value to chosen position*/
     void set(int x, int y, T val)
     {
+        if (val < min_value || val > max_value)
+        {
+            throw std::invalid_argument("Candidate value is out of bounds");
+        }
+        
         if (val == placeholder)
         {
             untake(x, y);
@@ -216,6 +202,7 @@ private:
         {
             take(x, y);
         }
+        
         square[x][y] = val;
     }
     
@@ -228,6 +215,15 @@ private:
         }
         
         return false;
+    }
+    
+    /**Fill taken*/
+    void rezero_taken()
+    {
+        for (uint16_t k = 0; k < domain_size; k++)
+        {
+            taken[k] = 0;
+        }
     }
     
 public:
@@ -255,11 +251,9 @@ public:
         {
             for (uint16_t j = 0; j < N; j++)
             {
-                square[i][j] = array[i][j];
+                set(i, j, array[i][j]);
             }
         }
-        
-        mark_taken();
     }
     
     /**Check if sum of row or column elements equals required*/
