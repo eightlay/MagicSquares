@@ -1,5 +1,5 @@
 //
-//  MagicSquareTemplate.h
+//  MagicSquare.h
 //  MagicSquares
 //
 //  Created by Timur Dzhalalov on 24.01.2022.
@@ -8,15 +8,16 @@
 
 #include <cstdint>
 #include <type_traits>
+#include <vector>
 
 #include "Utils.h"
 
 constexpr int FRACTIONAL_SIZE = 2;
 
 template<typename T, uint16_t N, T min_value, T max_value, uint32_t take_limit>
-class MagicSquareTemplate
+class MagicSquare
 {
-protected:
+private:
     /**Square itself*/
     T square[N][N];
     /**Values range*/
@@ -34,34 +35,34 @@ protected:
     /**Depth of the squre: number of elements to fill square*/
     const uint32_t depth = N * N;
     
-protected:
+private:
     /**Take one place from domain's value limit. Needs to be overrided*/
-    virtual void take(uint16_t i, uint16_t j)
+    void take(T val)
     {
-        
+        this->taken[val - min_value] += 1;
     }
     
     /**Untake one place from domain's value limit. Needs to be overrided*/
-    virtual void untake(uint16_t i, uint16_t j)
+    void untake(T val)
     {
-        
+        this->taken[val - min_value] -= 1;
     }
     
-    /**Is number on position p taken or not. Needs to be overrided*/
-    virtual bool is_taken(int p)
+    /**Is number taken or not. Needs to be overrided*/
+    bool is_taken(T val)
     {
-        return false;
+        return this->taken[val - min_value] == take_limit;
     }
     
-    /**Check if square is magic one. Needs to be overrided*/
-    virtual bool get_magic_number()
+    /**NOT IMPLEMENTED*/
+    uint32_t get_magic_number()
     {
-        return false;
+        return 0;
     }
     
 private:
     /**Send class to output stream*/
-    friend std::ostream& operator<<(std::ostream& out, const MagicSquareTemplate& ms)
+    friend std::ostream& operator<<(std::ostream& out, const MagicSquare& ms)
     {
         unsigned long size = 0;
         
@@ -155,7 +156,7 @@ private:
     /**Fill domain*/
     void fill_domain()
     {
-        for (uint32_t k = 0; k < depth; k++)
+        for (uint32_t k = 0; k < domain_size; k++)
         {
             domain[k] = k + 1;
         }
@@ -176,7 +177,7 @@ private:
     /**Calculate placeholder depending on data type*/
     void calculate_placeholder()
     {
-        if (std::is_signed<T>::value)
+        if (std::is_signed<T>::value || min_value - (T)1 >= 0)
         {
             placeholder = min_value - (T)1;
         }
@@ -189,18 +190,19 @@ private:
     /**Set value to chosen position*/
     void set(int x, int y, T val)
     {
-        if (val < min_value || val > max_value)
+        if ((val < min_value || val > max_value) && val != placeholder)
         {
             throw std::invalid_argument("Candidate value is out of bounds");
         }
         
-        if (val == placeholder)
+        if (square[x][y] != placeholder)
         {
-            untake(x, y);
+            untake(square[x][y]);
         }
-        else
+        
+        if (val != placeholder)
         {
-            take(x, y);
+            take(val);
         }
         
         square[x][y] = val;
@@ -227,7 +229,7 @@ private:
     }
     
 public:
-    MagicSquareTemplate()
+    MagicSquare()
     {
         calculate_placeholder();
         fill_domain();
@@ -235,16 +237,23 @@ public:
         rezero();
     }
     
-    MagicSquareTemplate(T array[N][N])
+    MagicSquare(T array[N][N])
     {
         calculate_placeholder();
         fill_domain();
         read(array);
     }
     
+    MagicSquare<T, N, min_value, max_value, take_limit> copy()
+    {
+        MagicSquare<T, N, min_value, max_value, take_limit> ms(square);
+        return ms;
+    }
+    
     /**Read square from array NxN of type T*/
     void read(T array[N][N])
     {
+        rezero();
         rezero_taken();
         
         for (uint16_t i = 0; i < N; i++)
@@ -319,5 +328,156 @@ public:
         T sum = get_magic_number();
         
         return check(sum);
+    }
+    
+public:
+    std::vector<MagicSquare<T, N, min_value, max_value, take_limit>> magic_squares_by_number(T magic_number, int limit = std::numeric_limits<int>::max())
+    {
+        std::vector<MagicSquare<T, N, min_value, max_value, take_limit>> v;
+        
+        uint32_t level = 0;
+        
+        while (level < depth && square[level / N][level % N] != placeholder)
+        {
+            level++;
+        }
+        
+        construct_magic_squares(&v, magic_number, level, limit);
+        
+        return v;
+    }
+    
+private:
+    /**Try to construct magic squares*/
+    bool construct_magic_squares(
+                                 std::vector<MagicSquare<T, N, min_value, max_value, take_limit>>* result,
+                                 T sum, int level, int limit
+                                 )
+    {
+        while (level < depth && square[level / N][level % N] != placeholder)
+        {
+            level++;
+        }
+        
+        if (level >= depth)
+        {
+            result->push_back(this->copy());
+            return false;
+        }
+        
+        if (result->size() >= limit)
+        {
+            return true;
+        }
+        
+        int x = level / N;
+        int y = level % N;
+        
+        for (int p = min_value; p <= max_value; p++)
+        {
+            if (is_taken(p))
+            {
+                continue;
+            }
+            
+            if (x == ultimate && y == ultimate)
+            {
+                T last = sum;
+                
+                for (int k = 0; k < ultimate; k++)
+                {
+                    last -= square[k][y];
+                }
+                
+                if (last != p)
+                {
+                    continue;
+                }
+            }
+            
+            set(x, y, p);
+            
+            // If it is penultimate value in column
+            if (x == penultimate)
+            {
+                T last = sum;
+                
+                for (int k = 0; k < ultimate; k++)
+                {
+                    last -= square[k][y];
+                }
+                
+                if (check_setability(last))
+                {
+                    set(ultimate, y, last);
+                }
+                else
+                {
+                    set(x, y, placeholder);
+                    continue;
+                }
+            }
+            
+            // If it is penultimate value in row
+            if (y == penultimate)
+            {
+                T last = sum;
+                
+                for (int k = 0; k < ultimate; k++)
+                {
+                    last -= square[x][k];
+                }
+                
+                if (check_setability(last))
+                {
+                    set(x, ultimate, last);
+                }
+                else
+                {
+                    set(ultimate, y, placeholder);
+                    set(x, y, placeholder);
+                    continue;
+                }
+            }
+            
+            // If it is penultimate value in row and column
+            if (x == penultimate && y == penultimate)
+            {
+                T last_main = sum;
+                T last_sub = sum;
+                T last_row = sum;
+                
+                for (int k = 0; k < ultimate; k++)
+                {
+                    last_main -= square[k][k];
+                    last_sub -= square[k][N - k - 1];
+                    last_row -= square[ultimate][k];
+                }
+                
+                if (check_setability(last_main) && last_sub == square[ultimate][0] && last_row == last_main)
+                {
+                    set(ultimate, ultimate, last_main);
+                }
+                else
+                {
+                    set(x, ultimate, placeholder);
+                    set(ultimate, y, placeholder);
+                    set(x, y, placeholder);
+                    continue;
+                }
+            }
+            
+            if (construct_magic_squares(result, sum, level + 1, limit))
+            {
+                return true;
+            }
+            
+            set(ultimate, ultimate, placeholder);
+            set(x, ultimate, placeholder);
+            set(ultimate, y, placeholder);
+            set(x, y, placeholder);
+        }
+        
+        return false;
     }
 };
