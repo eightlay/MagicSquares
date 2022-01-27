@@ -20,4 +20,5 @@ Consider classical magic square with side of length 3 and possible values from 1
 `MagicSquare<unsigned int, 3, 1, 9, 1>`
 
 To find first 4 such magic squares:
-SquareFinder::magic_squares<unsigned int, 3, 1, 9, 1>(4);
+
+`SquareFinder::magic_squares<unsigned int, 3, 1, 9, 1>(4)`
